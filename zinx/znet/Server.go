@@ -57,6 +57,9 @@ func (s *Server) Start() {
 					read, err2 := tcpConn.Read(buf)
 					if err2 != nil {
 						Log.Errorf("%s recv buf err error:%v", clientIP, err2)
+						if err2.Error() == "EOF" {
+							break
+						}
 						continue
 					}
 					// 回显
