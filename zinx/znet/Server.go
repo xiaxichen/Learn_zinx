@@ -1,6 +1,7 @@
 package znet
 
 import (
+	"errors"
 	"fmt"
 	Log "github.com/sirupsen/logrus"
 	"learn_zinx/zinx/ziface"
@@ -20,12 +21,24 @@ type Server struct {
 	Port int
 }
 
+// 定义当前客户端所绑定的handle api（目前这个handle是写死的 以后应为自定义）
+func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
+	Log.Info("[Conn Handler] CallBackToClient ...")
+	if _, err := conn.Write(data); err != nil {
+		Log.Errorf("[Conn Handler] write back buf err %v", err)
+		return errors.New("CallBackToClient Error")
+	}
+	return nil
+}
+
 func (s *Server) Server() {
 	s.Start()
 	select {}
 }
 
 func (s *Server) Start() {
+	var CID uint32
+	CID = 0
 	Log.Info("[Start] Server listener at IP %s ,Port %d, is starting!", s.IP, s.Port)
 	go func() {
 		// 1 获取tcp的address
@@ -49,27 +62,11 @@ func (s *Server) Start() {
 				Log.Errorf("Accept Error %v", err)
 				continue
 			}
-			// 已经与客户端建立链接，do something 做一个 最大为：512字节长度的回显
-			go func() {
-				for {
-					buf := make([]byte, 512)
-					clientIP := tcpConn.RemoteAddr()
-					read, err2 := tcpConn.Read(buf)
-					if err2 != nil {
-						Log.Errorf("%s recv buf err error:%v", clientIP, err2)
-						if err2.Error() == "EOF" {
-							break
-						}
-						continue
-					}
-					// 回显
-					if _, err2 := tcpConn.Write(buf[:read]); err2 != nil {
-						Log.Errorf("write back buffer error! IP:%s error:%v", clientIP, err2)
-						continue
-					}
-
-				}
-			}()
+			//将处理新链接的业务方法
+			connection := NewConnection(tcpConn, CID, CallBackToClient)
+			CID++
+			//启动处理
+			go connection.Start()
 		}
 
 	}()
