@@ -1,6 +1,7 @@
 package znet
 
 import (
+	Log "github.com/sirupsen/logrus"
 	"learn_zinx/zinx/ziface"
 	"net"
 )
@@ -26,27 +27,59 @@ type Connection struct {
 	ExitChan chan bool
 }
 
-func (Connection) Start() {
+// 从链接读取业务方法
+func (c *Connection) StartReader() {
+	Log.Infof("Reader Goroutine is running..")
+	defer Log.Infof("ConnID = %d Reader is Exit, remote addr is %s", c.ConnID, c.RemoteAddr().String())
+	defer c.Stop()
+	for {
+		//读取client Data 到buffer中,最大512字节
+		buf := make([]byte, 512)
+		readLength, err := c.Conn.Read(buf)
+		if err != nil {
+			Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+			continue
+		}
+
+		// 调用当前handle绑定的API
+		if err:=c.handleAPI(c.Conn, buf, readLength);err!=nil{
+			Log.Errorf("Error handleFunc ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+			break
+		}
+	}
+}
+
+func (c *Connection) Start() {
+	Log.Infof("Conn Start().. ConnID = %d", c.ConnID)
+	go c.StartReader()
+	//todo 启动当前写数据的业务
 	panic("implement me")
 }
 
-func (Connection) Stop() {
-	panic("implement me")
+func (c *Connection) Stop() {
+	Log.Infof("Conn Stop().. ConnID = %d", c.ConnID)
+	if c.isClose == true {
+		return
+	}
+	c.isClose = true
+	c.Conn.Close()
+	close(c.ExitChan)
+	return
 }
 
-func (Connection) GetTCPConnection() *net.TCPConn {
-	panic("implement me")
+func (c *Connection) GetTCPConnection() *net.TCPConn {
+	return c.Conn
 }
 
-func (Connection) GetConnID() uint32 {
-	panic("implement me")
+func (c *Connection) GetConnID() uint32 {
+	return c.ConnID
 }
 
-func (Connection) RemoteAddr() *net.Addr {
-	panic("implement me")
+func (c *Connection) RemoteAddr() net.Addr {
+	return c.Conn.RemoteAddr()
 }
 
-func (Connection) Send(data []byte) bool {
+func (c *Connection) Send(data []byte) bool {
 	panic("implement me")
 }
 
