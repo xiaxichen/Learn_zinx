@@ -38,6 +38,9 @@ func (c *Connection) StartReader() {
 		readLength, err := c.Conn.Read(buf)
 		if err != nil {
 			Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+			if err.Error() == "EOF" {
+				break
+			}
 			continue
 		}
 
@@ -53,7 +56,7 @@ func (c *Connection) Start() {
 	Log.Infof("Conn Start().. ConnID = %d", c.ConnID)
 	go c.StartReader()
 	//todo 启动当前写数据的业务
-	panic("implement me")
+	//panic("implement me")
 }
 
 func (c *Connection) Stop() {
