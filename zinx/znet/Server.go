@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-//iServer 的接口实现，定义一个Server的服务器moudel
+//iServer 的接口实现，定义一个Server的服务器model
 type Server struct {
 	//服务器的名称
 	Name string
@@ -19,6 +19,8 @@ type Server struct {
 	IP string
 	//服务器监听的端口
 	Port int
+	// 路由
+	Router ziface.IRouter
 }
 
 // 定义当前客户端所绑定的handle api（目前这个handle是写死的 以后应为自定义）
@@ -63,7 +65,7 @@ func (s *Server) Start() {
 				continue
 			}
 			//将处理新链接的业务方法
-			connection := NewConnection(tcpConn, CID, CallBackToClient)
+			connection := NewConnection(tcpConn, CID, s.Router)
 			CID++
 			//启动处理
 			go connection.Start()
@@ -76,6 +78,11 @@ func (s *Server) Stop() {
 
 }
 
+func (s *Server) AddRouter(router ziface.IRouter) {
+	s.Router = router
+	Log.Info("Add Router success!")
+}
+
 /*
 	初始化Server模块的方法
 */
@@ -86,6 +93,7 @@ func NewServer(name, IPVersion, IPAddress string, port int) ziface.IServer {
 		IPVersion: IPVersion,
 		IP:        IPAddress,
 		Port:      port,
+		Router:    nil,
 	}
 	return s
 }
