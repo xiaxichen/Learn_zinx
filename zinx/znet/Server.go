@@ -3,6 +3,7 @@ package znet
 import (
 	"fmt"
 	Log "github.com/sirupsen/logrus"
+	"learn_zinx/zinx/utils"
 	"learn_zinx/zinx/ziface"
 	"net"
 	"os"
@@ -21,7 +22,6 @@ type Server struct {
 	// 路由
 	Router ziface.IRouter
 }
-
 
 func (s *Server) Server() {
 	s.Start()
@@ -77,9 +77,9 @@ func (s *Server) AddRouter(router ziface.IRouter) {
 	初始化Server模块的方法
 */
 
-func NewServer(name, IPVersion, IPAddress string, port int) ziface.IServer {
+func NewServer(IPVersion, IPAddress string, port int) ziface.IServer {
 	s := &Server{
-		Name:      name,
+		Name:      utils.GlobalObject.Name,
 		IPVersion: IPVersion,
 		IP:        IPAddress,
 		Port:      port,
