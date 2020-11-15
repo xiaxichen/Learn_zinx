@@ -20,9 +20,6 @@ type Connection struct {
 	//当前的链接状态
 	isClose bool
 
-	//// 当前链接所绑定的处理方法API
-	//handleAPI ziface.HandleFunc
-
 	//告知当前链接已经退出停止的 channel
 	ExitChan chan bool
 
