@@ -1,7 +1,6 @@
 package znet
 
 import (
-	"errors"
 	"fmt"
 	Log "github.com/sirupsen/logrus"
 	"learn_zinx/zinx/ziface"
@@ -23,15 +22,6 @@ type Server struct {
 	Router ziface.IRouter
 }
 
-// 定义当前客户端所绑定的handle api（目前这个handle是写死的 以后应为自定义）
-func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
-	Log.Info("[Conn Handler] CallBackToClient ...")
-	if _, err := conn.Write(data); err != nil {
-		Log.Errorf("[Conn Handler] write back buf err %v", err)
-		return errors.New("CallBackToClient Error")
-	}
-	return nil
-}
 
 func (s *Server) Server() {
 	s.Start()
