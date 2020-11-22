@@ -31,7 +31,7 @@ func (s *Server) Server() {
 func (s *Server) Start() {
 	var CID uint32
 	CID = 0
-	Log.Infof("[Zinx] Config %+v", s)
+	Log.Infof("[Zinx] Config %+v", utils.GlobalObject)
 	Log.Infof("[Start] Server listener at IP %s ,Port %d, is starting!", s.IP, s.Port)
 	go func() {
 		// 1 获取tcp的address
@@ -56,7 +56,7 @@ func (s *Server) Start() {
 				continue
 			}
 			//将处理新链接的业务方法
-			connection := NewConnection(tcpConn, CID, s.Router)
+			connection := NewConnection(tcpConn, CID,utils.GlobalObject.MaxPackageSize, s.Router)
 			CID++
 			//启动处理
 			go connection.Start()
