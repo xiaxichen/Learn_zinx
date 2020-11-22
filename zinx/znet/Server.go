@@ -21,6 +21,8 @@ type Server struct {
 	Port int
 	// 路由
 	Router ziface.IRouter
+	// 服务器版本
+	ServerVersion string
 }
 
 func (s *Server) Server() {
@@ -32,6 +34,7 @@ func (s *Server) Start() {
 	var CID uint32
 	CID = 0
 	Log.Infof("[Zinx] Config %+v", utils.GlobalObject)
+	Log.Infof("[Zinx] final Config %+v", s)
 	Log.Infof("[Start] Server listener at IP %s ,Port %d, is starting!", s.IP, s.Port)
 	go func() {
 		// 1 获取tcp的address
@@ -56,7 +59,7 @@ func (s *Server) Start() {
 				continue
 			}
 			//将处理新链接的业务方法
-			connection := NewConnection(tcpConn, CID,utils.GlobalObject.MaxPackageSize, s.Router)
+			connection := NewConnection(tcpConn, CID, utils.GlobalObject.MaxPackageSize, s.Router)
 			CID++
 			//启动处理
 			go connection.Start()
@@ -80,11 +83,12 @@ func (s *Server) AddRouter(router ziface.IRouter) {
 
 func NewServer(IPVersion string) ziface.IServer {
 	s := &Server{
-		Name:      utils.GlobalObject.Name,
-		IPVersion: IPVersion,
-		IP:        utils.GlobalObject.Host,
-		Port:      utils.GlobalObject.TcpPort,
-		Router:    nil,
+		Name:          utils.GlobalObject.Name,
+		IPVersion:     IPVersion,
+		ServerVersion: utils.GlobalObject.Version,
+		IP:            utils.GlobalObject.Host,
+		Port:          utils.GlobalObject.TcpPort,
+		Router:        nil,
 	}
 	return s
 }
