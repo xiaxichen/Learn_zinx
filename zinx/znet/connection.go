@@ -36,8 +36,8 @@ func (c *Connection) StartReader() {
 	defer Log.Infof("ConnID = %d Reader is Exit, remote addr is %s", c.ConnID, c.RemoteAddr().String())
 	defer c.Stop()
 	for {
-		//读取client Data 到buffer中,最大512字节
-		buf := make([]byte, 512)
+		//读取client Data 到buffer中,最大为配置中的MaxPackageSize
+		buf := make([]byte, c.MaxPackageSize)
 		_, err := c.Conn.Read(buf)
 		if err != nil {
 			Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
