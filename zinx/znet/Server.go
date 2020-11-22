@@ -31,7 +31,8 @@ func (s *Server) Server() {
 func (s *Server) Start() {
 	var CID uint32
 	CID = 0
-	Log.Info("[Start] Server listener at IP %s ,Port %d, is starting!", s.IP, s.Port)
+	Log.Infof("[Zinx] Config %+v", s)
+	Log.Infof("[Start] Server listener at IP %s ,Port %d, is starting!", s.IP, s.Port)
 	go func() {
 		// 1 获取tcp的address
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
@@ -77,12 +78,12 @@ func (s *Server) AddRouter(router ziface.IRouter) {
 	初始化Server模块的方法
 */
 
-func NewServer(IPVersion, IPAddress string, port int) ziface.IServer {
+func NewServer(IPVersion string) ziface.IServer {
 	s := &Server{
 		Name:      utils.GlobalObject.Name,
 		IPVersion: IPVersion,
-		IP:        IPAddress,
-		Port:      port,
+		IP:        utils.GlobalObject.Host,
+		Port:      utils.GlobalObject.TcpPort,
 		Router:    nil,
 	}
 	return s
