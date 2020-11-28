@@ -52,7 +52,8 @@ func (d *DataPack) UnPack(bytesData []byte) (ziface.IMessage, error) {
 	msg := &Message{}
 
 	//读data length
-	err := binary.Read(buffer, binary.LittleEndian, &msg.DataLen)
+	dataLen := msg.GetMsgLen()
+	err := binary.Read(buffer, binary.LittleEndian, &dataLen)
 	if err != nil {
 		goto ERR
 	}
