@@ -78,7 +78,7 @@ func (c *Connection) StartReader() {
 			_, err := io.ReadFull(c.Conn, data)
 			if err != nil {
 				Log.Errorf("Read Conn data for Msg set Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
-				panic(err)
+				return
 			}
 			msg.SetMsgData(data)
 		}
@@ -93,6 +93,7 @@ func (c *Connection) StartReader() {
 			c.Router.PreHandle(request)
 			c.Router.Handle(request)
 			c.Router.PostHandle(request)
+			Log.Info("----------------------------")
 		}(&req)
 
 	}
