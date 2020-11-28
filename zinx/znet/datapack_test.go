@@ -40,23 +40,22 @@ func TestDataPack_Pack(t *testing.T) {
 						t.Log(err)
 						panic(err)
 					}
-					msgHead, err := pack.UnPack(headData)
+					msg, err := pack.UnPack(headData)
 					if err != nil {
 						t.Log(err)
 						panic(err)
 					}
-					if msgHead.GetMsgLen() > 0 {
+					if msg.GetMsgLen() > 0 {
 						// 第二次从 conn 读,根据头中的data length 再读取data的内容
-						msg := msgHead.(*Message)
-						msg.Data = make([]byte, msg.GetMsgLen())
-
+						msgData := make([]byte, msg.GetMsgLen())
 						// 根据data length的长度再次从io流中读取
-						_, err := io.ReadFull(conn, msg.Data)
+						_, err := io.ReadFull(conn, msgData)
 						if err != nil {
 							t.Log(err)
 							panic(err)
 						}
-						t.Log("==> Recv Msg: ID=", msg.Id, ", len=", msg.DataLen, ", data=", string(msg.Data))
+						msg.SetMsgData(msgData)
+						t.Log("==> Recv Msg: ID=", msg.GetMsgId(), ", len=", msg.GetMsgLen(), ", data=", string(msg.GetMsgData()))
 					}
 				}
 			}(accept)
