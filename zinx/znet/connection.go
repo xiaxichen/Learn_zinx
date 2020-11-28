@@ -1,7 +1,9 @@
 package znet
 
 import (
+	"errors"
 	Log "github.com/sirupsen/logrus"
+	"io"
 	"learn_zinx/zinx/ziface"
 	"net"
 )
@@ -37,19 +39,53 @@ func (c *Connection) StartReader() {
 	defer c.Stop()
 	for {
 		//读取client Data 到buffer中,最大为配置中的MaxPackageSize
-		buf := make([]byte, c.MaxPackageSize)
-		_, err := c.Conn.Read(buf)
+		//buf := make([]byte, c.MaxPackageSize)
+		//_, err := c.Conn.Read(buf)
+		//if err != nil {
+		//	Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+		//	if err.Error() == "EOF" {
+		//		break
+		//	}
+		//	continue
+		//}
+		// 创建一个 拆包解包的对象
+		pack := NewDataPack()
+
+		// 读取客户端的msg Head 二进制流 8字节
+		headData := make([]byte, pack.GetHeadLen())
+		//c.GetTCPConnection()
+		_, err := io.ReadFull(c.Conn, headData)
 		if err != nil {
 			Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
 			if err.Error() == "EOF" {
 				break
 			}
-			continue
+		}
+
+		// 拆包,得到msgID 和 msgDatalen 放到消息中
+		msg, err := pack.UnPack(headData)
+		if err != nil {
+			Log.Errorf("UnPack Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+			break
+		}
+
+		// 根据datalen 再次读取Data， 放在msgData中
+		if msg.GetMsgLen() > 0 {
+			// 第二次从 conn 读,根据头中的data length 再读取data的内容
+			data := make([]byte, msg.GetMsgLen())
+
+			// 根据data length的长度再次从io流中读取
+			_, err := io.ReadFull(c.Conn, data)
+			if err != nil {
+				Log.Errorf("Read Conn data for Msg set Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+				panic(err)
+			}
+			msg.SetMsgData(data)
 		}
 		// 从当前 Conn 得到数据 绑定到 Request 中
 		req := Requests{
 			conn: c,
-			data: buf,
+			msg:  msg,
 		}
 		//执行注册的路由方法
 		go func(request ziface.IRequest) {
@@ -62,6 +98,25 @@ func (c *Connection) StartReader() {
 	}
 }
 
+// 提供一个send Msg的方法
+func (c *Connection) Send(msgId uint32, data []byte) error {
+	if c.isClose == true {
+		return errors.New("Connection is Closed! for send !")
+	}
+	// 将data进行封包 msgDataLen|MsgId|Data
+	pack := NewDataPack()
+	binaryMsg, err := pack.Pack(NewMsgPackage(msgId, data))
+	if err != nil {
+		Log.Errorf("Pack error msg Id =%s", msgId)
+		return err
+	}
+	_, err = c.Conn.Write(binaryMsg)
+	if err != nil {
+		Log.Errorf("msg send error msg Id =%s", msgId)
+		return err
+	}
+	return nil
+}
 func (c *Connection) Start() {
 	Log.Infof("Conn Start().. ConnID = %d", c.ConnID)
 	go c.StartReader()
@@ -90,10 +145,6 @@ func (c *Connection) GetConnID() uint32 {
 
 func (c *Connection) RemoteAddr() net.Addr {
 	return c.Conn.RemoteAddr()
-}
-
-func (c *Connection) Send(data []byte) bool {
-	panic("implement me")
 }
 
 // 初始化链接的方法

@@ -95,7 +95,7 @@ func TestDataPack_Pack(t *testing.T) {
 	m2 := &Message{
 		Id:      2,
 		DataLen: 5,
-		Data:    []byte{},
+		Data:    i2,
 	}
 	i4, err := pack.Pack(m2)
 	if err != nil {
