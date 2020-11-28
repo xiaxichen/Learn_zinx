@@ -31,3 +31,11 @@ func (m *Message) SetMsgData(data []byte) {
 	m.Data = data
 
 }
+
+func NewMsgPackage(id uint32, data []byte) *Message {
+	return &Message{
+		Id:      id,
+		DataLen: uint32(len(data)),
+		Data:    data,
+	}
+}
