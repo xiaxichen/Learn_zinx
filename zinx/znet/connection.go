@@ -27,6 +27,11 @@ type Connection struct {
 	Router ziface.IRouter
 }
 
+// 告知当前链接是否关闭
+func (c *Connection) IsClose() bool {
+	return c.isClose
+}
+
 // 从链接读取业务方法
 func (c *Connection) StartReader() {
 	Log.Infof("Reader Goroutine is running..")
@@ -102,7 +107,7 @@ func NewConnection(conn *net.TCPConn, ConnID uint32, router ziface.IRouter) *Con
 	c := &Connection{
 		Conn:     conn,
 		ConnID:   ConnID,
-		isClose:  false,
+		isClose:  true,
 		Router:   router,
 		ExitChan: make(chan bool, 1),
 	}
