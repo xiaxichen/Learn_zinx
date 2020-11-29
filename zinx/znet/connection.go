@@ -32,6 +32,11 @@ type Connection struct {
 	MaxPackageSize uint32
 }
 
+// 告知当前链接是否关闭
+func (c *Connection) IsClose() bool {
+	return c.isClose
+}
+
 // 从链接读取业务方法
 func (c *Connection) StartReader() {
 	Log.Infof("Reader Goroutine is running..")
