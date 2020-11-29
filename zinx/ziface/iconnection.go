@@ -15,7 +15,8 @@ type IConnection interface {
 	RemoteAddr() net.Addr
 	//发送数据，将数据发送给远程的客户端
 	Send(data []byte) bool
-
+	//链接是否关闭
+	IsClose() bool
 }
 
 // 定义一个链接处理业务的方法
