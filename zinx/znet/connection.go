@@ -90,17 +90,21 @@ func (c *Connection) RemoteAddr() net.Addr {
 }
 
 func (c *Connection) Send(data []byte) bool {
-	panic("implement me")
+	_, err := c.Conn.Write(data)
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 // 初始化链接的方法
 func NewConnection(conn *net.TCPConn, ConnID uint32, router ziface.IRouter) *Connection {
 	c := &Connection{
-		Conn:      conn,
-		ConnID:    ConnID,
-		isClose:   false,
-		Router: router,
-		ExitChan:  make(chan bool, 1),
+		Conn:     conn,
+		ConnID:   ConnID,
+		isClose:  false,
+		Router:   router,
+		ExitChan: make(chan bool, 1),
 	}
 	return c
 }
