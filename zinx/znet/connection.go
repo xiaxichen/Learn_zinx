@@ -26,7 +26,10 @@ type Connection struct {
 	ExitChan chan bool
 
 	//该链接处理的方法
-	Router ziface.IRouter
+	MsgHandler ziface.IMsgHandle
+
+	//该链接处理的方法
+	//Router ziface.IRouter
 
 	//无缓冲的管道，用于读写goroutine之间的消息通信
 	msgChan chan []byte
@@ -96,13 +99,8 @@ func (c *Connection) StartReader() {
 			msg:  msg,
 		}
 		//执行注册的路由方法
-		go func(request ziface.IRequest) {
-			//从路由找到注册绑定的Conn对应的router调用
-			c.Router.PreHandle(request)
-			c.Router.Handle(request)
-			c.Router.PostHandle(request)
-			Log.Info("----------------------------")
-		}(&req)
+		//根据绑定好的MsgId 找到对应处理的handle
+		go c.MsgHandler.DoMsgHandler(&req)
 
 	}
 }
@@ -176,12 +174,12 @@ func (c *Connection) RemoteAddr() net.Addr {
 }
 
 // 初始化链接的方法
-func NewConnection(conn *net.TCPConn, ConnID uint32, MaxPackageSize uint32, router ziface.IRouter) *Connection {
+func NewConnection(conn *net.TCPConn, ConnID uint32, MaxPackageSize uint32, handler ziface.IMsgHandle) *Connection {
 	c := &Connection{
 		Conn:           conn,
 		ConnID:         ConnID,
 		isClose:        false,
-		Router:         router,
+		MsgHandler:     handler,
 		ExitChan:       make(chan bool, 1),
 		msgChan:        make(chan []byte),
 		MaxPackageSize: MaxPackageSize,
