@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	Log "github.com/sirupsen/logrus"
+	"learn_zinx/zinx/logger"
 	"learn_zinx/zinx/utils"
 	"learn_zinx/zinx/ziface"
 )
@@ -40,7 +40,7 @@ func (d *DataPack) Pack(msg ziface.IMessage) ([]byte, error) {
 
 	return buffer.Bytes(), nil
 ERR:
-	Log.Errorf("Pack error for message:%+v ; err:%s", msg, err)
+	logger.Log.Errorf("Pack error for message:%+v ; err:%s", msg, err)
 	return nil, err
 }
 
@@ -69,7 +69,7 @@ func (d *DataPack) UnPack(bytesData []byte) (ziface.IMessage, error) {
 
 	return msg, err
 ERR:
-	Log.Errorf("UnPack error for err:%s ; data:%s", err, bytesData)
+	logger.Log.Errorf("UnPack error for err:%s ; data:%s", err, bytesData)
 	return nil, err
 }
 

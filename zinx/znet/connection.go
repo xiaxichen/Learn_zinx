@@ -2,8 +2,8 @@ package znet
 
 import (
 	"errors"
-	Log "github.com/sirupsen/logrus"
 	"io"
+	"learn_zinx/zinx/logger"
 	"learn_zinx/zinx/ziface"
 	"net"
 )
@@ -31,6 +31,9 @@ type Connection struct {
 	//该链接处理的方法
 	//Router ziface.IRouter
 
+	//无缓冲的管道，用于读写goroutine之间的消息通信
+	msgChan chan []byte
+
 	//最大处理字节数
 	MaxPackageSize uint32
 }
@@ -42,15 +45,15 @@ func (c *Connection) IsClose() bool {
 
 // 从链接读取业务方法
 func (c *Connection) StartReader() {
-	Log.Infof("Reader Goroutine is running..")
-	defer Log.Infof("ConnID = %d Reader is Exit, remote addr is %s", c.ConnID, c.RemoteAddr().String())
+	logger.Log.Info("Reader Goroutine is running..")
+	defer logger.Log.Infof("[ConnID = %d Reader is Exit, remote addr is %s]", c.ConnID, c.RemoteAddr().String())
 	defer c.Stop()
 	for {
 		//读取client Data 到buffer中,最大为配置中的MaxPackageSize
 		//buf := make([]byte, c.MaxPackageSize)
 		//_, err := c.Conn.Read(buf)
 		//if err != nil {
-		//	Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+		//	logger.Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
 		//	if err.Error() == "EOF" {
 		//		break
 		//	}
@@ -64,7 +67,7 @@ func (c *Connection) StartReader() {
 		//c.GetTCPConnection()
 		_, err := io.ReadFull(c.Conn, headData)
 		if err != nil {
-			Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+			logger.Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
 			if err.Error() == "EOF" {
 				break
 			}
@@ -73,7 +76,7 @@ func (c *Connection) StartReader() {
 		// 拆包,得到msgID 和 msgDatalen 放到消息中
 		msg, err := pack.UnPack(headData)
 		if err != nil {
-			Log.Errorf("UnPack Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+			logger.Log.Errorf("UnPack Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
 			break
 		}
 
@@ -85,7 +88,7 @@ func (c *Connection) StartReader() {
 			// 根据data length的长度再次从io流中读取
 			_, err := io.ReadFull(c.Conn, data)
 			if err != nil {
-				Log.Errorf("Read Conn data for Msg set Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+				logger.Log.Errorf("Read Conn data for Msg set Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
 				return
 			}
 			msg.SetMsgData(data)
@@ -102,6 +105,26 @@ func (c *Connection) StartReader() {
 	}
 }
 
+// 开始写入
+func (c *Connection) StartWriter() {
+	logger.Log.Info("[Write Goroutine is running!]")
+	defer logger.Log.Infof("%s [conn Write is Close!]", c.RemoteAddr().String())
+	for {
+
+		select {
+		case data := <-c.msgChan:
+			//有数据要写给客户端
+			if _, err := c.Conn.Write(data); err != nil {
+				logger.Log.Warnf("Send data error %s", err)
+				return
+			}
+		case <-c.ExitChan:
+			//代表Reader已经退出，此时Writer也要退出
+			return
+		}
+	}
+}
+
 // 提供一个send Msg的方法
 func (c *Connection) Send(msgId uint32, data []byte) error {
 	if c.isClose == true {
@@ -111,32 +134,31 @@ func (c *Connection) Send(msgId uint32, data []byte) error {
 	pack := NewDataPack()
 	binaryMsg, err := pack.Pack(NewMsgPackage(msgId, data))
 	if err != nil {
-		Log.Errorf("Pack error msg Id =%s", msgId)
+		logger.Log.Errorf("Pack error msg Id =%s", msgId)
 		return err
 	}
-	_, err = c.Conn.Write(binaryMsg)
-	if err != nil {
-		Log.Errorf("msg send error msg Id =%s", msgId)
-		return err
-	}
+	// 发送数据到管道
+	c.msgChan <- binaryMsg
 	return nil
 }
 func (c *Connection) Start() {
-	Log.Infof("Conn Start().. ConnID = %d", c.ConnID)
+	logger.Log.Infof("Conn Start().. ConnID = %d", c.ConnID)
 	go c.StartReader()
-	//todo 启动当前写数据的业务
-	//panic("implement me")
+	//启动当前写数据的业务
+	go c.StartWriter()
 }
 
 func (c *Connection) Stop() {
-	Log.Infof("Conn Stop().. ConnID = %d", c.ConnID)
+	logger.Log.Infof("Conn Stop().. ConnID = %d", c.ConnID)
 	if c.isClose == true {
 		return
 	}
 	c.isClose = true
 	c.Conn.Close()
+	// 告知writer 关闭
+	c.ExitChan <- true
 	close(c.ExitChan)
-	return
+	close(c.msgChan)
 }
 
 func (c *Connection) GetTCPConnection() *net.TCPConn {
@@ -159,6 +181,7 @@ func NewConnection(conn *net.TCPConn, ConnID uint32, MaxPackageSize uint32, hand
 		isClose:        false,
 		MsgHandler:     handler,
 		ExitChan:       make(chan bool, 1),
+		msgChan:        make(chan []byte),
 		MaxPackageSize: MaxPackageSize,
 	}
 	return c

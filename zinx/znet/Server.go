@@ -2,7 +2,7 @@ package znet
 
 import (
 	"fmt"
-	Log "github.com/sirupsen/logrus"
+	"learn_zinx/zinx/logger"
 	"learn_zinx/zinx/utils"
 	"learn_zinx/zinx/ziface"
 	"net"
@@ -33,29 +33,29 @@ func (s *Server) Server() {
 func (s *Server) Start() {
 	var CID uint32
 	CID = 0
-	Log.Infof("[Zinx] Config %+v", utils.GlobalObject)
-	Log.Infof("[Zinx] final Config %+v", s)
-	Log.Infof("[Start] Server listener at IP %s ,Port %d, is starting!", s.IP, s.Port)
+	logger.Log.Infof("[Zinx] Config %+v", utils.GlobalObject)
+	logger.Log.Infof("[Zinx] final Config %+v", s)
+	logger.Log.Infof("[Start] Server listener at IP %s ,Port %d, is starting!", s.IP, s.Port)
 	go func() {
 		// 1 获取tcp的address
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {
-			Log.Errorf("resolve tcp addt error : %v", err)
+			logger.Log.Errorf("resolve tcp addt error : %v", err)
 			os.Exit(0)
 		}
 		// 2 监听服务器的地址
 		listenIP, err := net.ListenTCP(s.IPVersion, addr)
 		if err != nil {
-			Log.Errorf(" %v", err)
+			logger.Log.Errorf(" %v", err)
 			os.Exit(0)
 		}
-		Log.Info("strat Zinx server success ! ", s.Name, " listening...")
+		logger.Log.Info("strat Zinx server success ! ", s.Name, " listening...")
 		// 3 阻塞的等待客户端连接，处理客户端的请求
 
 		for {
 			tcpConn, err := listenIP.AcceptTCP()
 			if err != nil {
-				Log.Errorf("Accept Error %v", err)
+				logger.Log.Errorf("Accept Error %v", err)
 				continue
 			}
 			//将处理新链接的业务方法
@@ -77,7 +77,7 @@ func (s *Server) AddRouter(msgId uint32, router ziface.IRouter) {
 	if err != nil {
 		return
 	}
-	Log.Info("Add Router success!")
+	logger.Log.Info("Add Router success!")
 }
 
 /*
