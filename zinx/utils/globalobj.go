@@ -2,8 +2,8 @@ package utils
 
 import (
 	"encoding/json"
-	Log "github.com/sirupsen/logrus"
 	"io/ioutil"
+	"learn_zinx/zinx/logger"
 	"learn_zinx/zinx/ziface"
 	"os"
 )
@@ -36,15 +36,17 @@ type GlobalObj struct {
 func (g GlobalObj) Reload(file string) {
 	readFile, err := ioutil.ReadFile(file)
 	if err != nil {
-		Log.Error("配置文件读取失败！err:", err)
-		Log.Warn("读取默认配置。")
+		logger.Log.Error("reload config file fail！err:", err)
+		logger.Log.Warn("reload default config")
 		return
 	}
 	err = json.Unmarshal(readFile, &GlobalObject)
 	if err != nil {
-		Log.Error("配置文件读取失败！err:", err)
-		Log.Warn("读取默认配置。")
+		logger.Log.Error("reload config file fail！err:", err)
+		logger.Log.Warn("reload default config")
 	}
+	logger.Log.Info("reload config success!")
+	logger.Log.Info(GlobalObject)
 }
 
 /*
