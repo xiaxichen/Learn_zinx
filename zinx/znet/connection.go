@@ -28,6 +28,9 @@ type Connection struct {
 	//该链接处理的方法
 	Router ziface.IRouter
 
+	//无缓冲的管道，用于读写goroutine之间的消息通信
+	msgChan chan []byte
+
 	//最大处理字节数
 	MaxPackageSize uint32
 }
@@ -40,7 +43,7 @@ func (c *Connection) IsClose() bool {
 // 从链接读取业务方法
 func (c *Connection) StartReader() {
 	Log.Infof("Reader Goroutine is running..")
-	defer Log.Infof("ConnID = %d Reader is Exit, remote addr is %s", c.ConnID, c.RemoteAddr().String())
+	defer Log.Infof("[ConnID = %d Reader is Exit, remote addr is %s]", c.ConnID, c.RemoteAddr().String())
 	defer c.Stop()
 	for {
 		//读取client Data 到buffer中,最大为配置中的MaxPackageSize
@@ -104,6 +107,26 @@ func (c *Connection) StartReader() {
 	}
 }
 
+// 开始写入
+func (c *Connection) StartWriter() {
+	Log.Info("[Write Goroutine is running!]")
+	defer Log.Infof("%s [conn Write is Close!]", c.RemoteAddr().String())
+	for {
+
+		select {
+		case data := <-c.msgChan:
+			//有数据要写给客户端
+			if _, err := c.Conn.Write(data); err != nil {
+				Log.Warnf("Send data error %s", err)
+				return
+			}
+		case <-c.ExitChan:
+			//代表Reader已经退出，此时Writer也要退出
+			return
+		}
+	}
+}
+
 // 提供一个send Msg的方法
 func (c *Connection) Send(msgId uint32, data []byte) error {
 	if c.isClose == true {
@@ -116,18 +139,15 @@ func (c *Connection) Send(msgId uint32, data []byte) error {
 		Log.Errorf("Pack error msg Id =%s", msgId)
 		return err
 	}
-	_, err = c.Conn.Write(binaryMsg)
-	if err != nil {
-		Log.Errorf("msg send error msg Id =%s", msgId)
-		return err
-	}
+	// 发送数据到管道
+	c.msgChan <- binaryMsg
 	return nil
 }
 func (c *Connection) Start() {
 	Log.Infof("Conn Start().. ConnID = %d", c.ConnID)
 	go c.StartReader()
-	//todo 启动当前写数据的业务
-	//panic("implement me")
+	//启动当前写数据的业务
+	go c.StartWriter()
 }
 
 func (c *Connection) Stop() {
@@ -137,8 +157,10 @@ func (c *Connection) Stop() {
 	}
 	c.isClose = true
 	c.Conn.Close()
+	// 告知writer 关闭
+	c.ExitChan <- true
 	close(c.ExitChan)
-	return
+	close(c.msgChan)
 }
 
 func (c *Connection) GetTCPConnection() *net.TCPConn {
@@ -161,6 +183,7 @@ func NewConnection(conn *net.TCPConn, ConnID uint32, MaxPackageSize uint32, rout
 		isClose:        false,
 		Router:         router,
 		ExitChan:       make(chan bool, 1),
+		msgChan:        make(chan []byte),
 		MaxPackageSize: MaxPackageSize,
 	}
 	return c
