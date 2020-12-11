@@ -9,6 +9,6 @@ func init() {
 	Log.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})
-	//Log.SetReportCaller(true)
+	Log.SetReportCaller(true)
 	Log.Info("start Log！")
 }
