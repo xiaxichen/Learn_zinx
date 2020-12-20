@@ -3,12 +3,17 @@ package znet
 import (
 	"errors"
 	"learn_zinx/zinx/logger"
+	"learn_zinx/zinx/utils"
 	"learn_zinx/zinx/ziface"
 )
 
 type MsgHandle struct {
 	// 存放每个MsgId 所对应的处理方式
 	Apis map[uint32]ziface.IRouter
+	// 负责Worker取任务的消息队列
+	TaskQueue []chan ziface.IRequest
+	// 业务工作worker池的worker数量
+	WorkerPoolSize uint32
 }
 
 func (mh *MsgHandle) DoMsgHandler(request ziface.IRequest) {
@@ -37,6 +42,8 @@ func (mh *MsgHandle) AddRouter(msgId uint32, router ziface.IRouter) error {
 
 func NewMsgHandle() *MsgHandle {
 	return &MsgHandle{
-		Apis: make(map[uint32]ziface.IRouter),
+		Apis:           make(map[uint32]ziface.IRouter),
+		WorkerPoolSize: utils.GlobalObject.WorkerPoolSize,
+		TaskQueue:      make([]chan ziface.IRequest, utils.GlobalObject.MaxPackageSize),
 	}
 }
