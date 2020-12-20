@@ -4,5 +4,7 @@
   "Name": "ZinxDemo",
   "Version": "V0.6",
   "MaxConn": 1000,
-  "MaxPackageSize": 2048
+  "MaxPackageSize": 2048,
+  "WorkerPoolSize": 10,
+  "MaxWorkerTaskLength": 1024
 }
