@@ -69,10 +69,10 @@ func init() {
 		Version:             "V0.4",
 		MaxConn:             2000,
 		MaxPackageSize:      4096,
-		WorkerPoolSize:      10,
-		MaxWorkerTaskLength: 1024,
+		WorkerPoolSize:      10, // worker工作池的消息队列个数
+		MaxWorkerTaskLength: 1024, // 每个worker对应的消息队列的任务的数量最大值
 	}
-	//应该尝试从conf/zinx.json加载一些用户自定义的参数
+	// 应该尝试从conf/zinx.json加载一些用户自定义的参数
 
 	nowPath, err := os.Getwd()
 	if err != nil {
