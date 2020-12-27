@@ -10,4 +10,6 @@ type IMsgHandle interface {
 	AddRouter(msgId uint32, router IRouter) error
 	// 启动Worker工作池
 	StartWorkerPool()
+	// 提交消息到消息队列中
+	SendMsgToTaskQueue(request IRequest)
 }
