@@ -27,7 +27,7 @@ type GlobalObj struct {
 	Version             string //当去Zinx版本号
 	MaxConn             int    //当前主机最大连接数
 	MaxPackageSize      uint32 //当前zinx框架数据包的最大值
-	WorkerPoolSize      uint32 //当前业务工作池数量Goroutine
+	WorkerPoolSize      uint32 //当前业务工作池数量Goroutine 为0则为关闭工作池模式
 	MaxWorkerTaskLength uint32 //zinx 允许用户最多开辟多少个Worker
 }
 
