@@ -22,7 +22,7 @@ func (mh *MsgHandle) DoMsgHandler(request ziface.IRequest) {
 	// Requests 中拿到msgID
 	handle, ok := mh.Apis[request.GetId()]
 	if !ok {
-		logger.Log.Error("Api msgId not defind  msgId=%d", request.GetId())
+		logger.Log.Errorf("Api msgId not defind  msgId=%d", request.GetId())
 		return
 	}
 	handle.PreHandle(request)
@@ -44,34 +44,44 @@ func (mh *MsgHandle) AddRouter(msgId uint32, router ziface.IRouter) error {
 
 func NewMsgHandle() *MsgHandle {
 	return &MsgHandle{
-		Apis:           make(map[uint32]ziface.IRouter),
-		WorkerPoolSize: utils.GlobalObject.WorkerPoolSize,
-		TaskQueue:      make([]chan ziface.IRequest, utils.GlobalObject.WorkerPoolSize),
+		Apis:             make(map[uint32]ziface.IRouter),
+		WorkerPoolSize:   utils.GlobalObject.WorkerPoolSize,
+		TaskQueue:        make([]chan ziface.IRequest, utils.GlobalObject.WorkerPoolSize),
 		MaxWorkerTaskLen: utils.GlobalObject.MaxWorkerTaskLength,
 	}
 }
 
 // 启动一个Worker工作池 开启工作池的动作，一个zinx框架只能有一个工作池
-func (mh *MsgHandle) StartWorkerPool()  {
+func (mh *MsgHandle) StartWorkerPool() {
 	// 根据WorkerPoolSize 分别开启Worker，每个Worker用一个go来承载
 	for i := 0; i < int(mh.WorkerPoolSize); i++ {
 		// 一个worker被启动
 		// 1.当前的 worker对应的channel消息队列 开辟空间 worker id为i
-		mh.TaskQueue[i] = make(chan ziface.IRequest,mh.MaxWorkerTaskLen)
+		mh.TaskQueue[i] = make(chan ziface.IRequest, mh.MaxWorkerTaskLen)
 		// 2.启动当前的worker，阻塞等待消息从channel传递进来
-		go mh.StartWorker(i,mh.TaskQueue[i])
+		go mh.StartWorker(i, mh.TaskQueue[i])
 	}
 }
 
 //启动一个工作流程
-func (mh *MsgHandle) StartWorker(workerId int,taskQueue chan ziface.IRequest) {
-	logger.Log.Info("Worker ID=%d is Started!",workerId)
+func (mh *MsgHandle) StartWorker(workerId int, taskQueue chan ziface.IRequest) {
+	logger.Log.Debugf("Worker ID=%d is Started!", workerId)
 	// 不断的阻塞等待消息对应的队列消息
-	for  {
+	for {
 		select {
 		// 如果有消息进入，出列的就是一个客户端的Request，执行当前request 绑定的业务
-		case request:=<-taskQueue:
+		case request := <-taskQueue:
 			mh.DoMsgHandler(request)
 		}
 	}
+}
+
+//将消息提交到消息队列，由worker进行处理
+func (mh *MsgHandle) SendMsgToTaskQueue(request ziface.IRequest) {
+	// 1 消息平均分配个不同的worker（根据客户端建立的ConnId来进行分配）
+	wokerId := request.GetConnection().GetConnID() % mh.WorkerPoolSize
+	logger.Log.Debugf("Add ConnId=%d ;requests ID=%d ;To WorkerID=%d", request.GetConnection().GetConnID(),
+		request.GetId(), wokerId)
+	// 2 将消息发送给对应的worker的TaskQueue
+	mh.TaskQueue[wokerId] <- request
 }
