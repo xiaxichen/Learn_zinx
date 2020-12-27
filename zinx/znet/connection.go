@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"learn_zinx/zinx/logger"
+	"learn_zinx/zinx/utils"
 	"learn_zinx/zinx/ziface"
 	"net"
 )
@@ -98,10 +99,14 @@ func (c *Connection) StartReader() {
 			conn: c,
 			msg:  msg,
 		}
-		//执行注册的路由方法
-		//根据绑定好的MsgId 找到对应处理的handle
-		go c.MsgHandler.DoMsgHandler(&req)
-
+		if utils.GlobalObject.WorkerPoolSize > 0 {
+			//已经开启了工作池机制,将消息发送给工作池即可
+			c.MsgHandler.SendMsgToTaskQueue(&req)
+		} else {
+			//执行注册的路由方法
+			//根据绑定好的MsgId 找到对应处理的handle
+			go c.MsgHandler.DoMsgHandler(&req)
+		}
 	}
 }
 
@@ -142,7 +147,7 @@ func (c *Connection) Send(msgId uint32, data []byte) error {
 	return nil
 }
 func (c *Connection) Start() {
-	logger.Log.Infof("Conn Start().. ConnID = %d", c.ConnID)
+	logger.Log.Debugf("Conn Start().. ConnID = %d", c.ConnID)
 	go c.StartReader()
 	//启动当前写数据的业务
 	go c.StartWriter()
