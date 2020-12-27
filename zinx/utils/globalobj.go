@@ -24,10 +24,11 @@ type GlobalObj struct {
 	/*
 		zinx
 	*/
-	Version        string //当去Zinx版本号
-	MaxConn        int    //当前主机最大连接数
-	MaxPackageSize uint32 //当前zinx框架数据包的最大值
-
+	Version             string //当去Zinx版本号
+	MaxConn             int    //当前主机最大连接数
+	MaxPackageSize      uint32 //当前zinx框架数据包的最大值
+	WorkerPoolSize      uint32 //当前业务工作池数量Goroutine 为0则为关闭工作池模式
+	MaxWorkerTaskLength uint32 //zinx 允许用户最多开辟多少个Worker
 }
 
 /*
@@ -61,15 +62,17 @@ var GlobalObject *GlobalObj
 func init() {
 	//如果配置文件没有加载就是默认配置
 	GlobalObject = &GlobalObj{
-		TcpServer:      nil,
-		Host:           "0.0.0.0",
-		TcpPort:        9000,
-		Name:           "ZinxServerApp",
-		Version:        "V0.4",
-		MaxConn:        2000,
-		MaxPackageSize: 4096,
+		TcpServer:           nil,
+		Host:                "0.0.0.0",
+		TcpPort:             9000,
+		Name:                "ZinxServerApp",
+		Version:             "V0.4",
+		MaxConn:             2000,
+		MaxPackageSize:      4096,
+		WorkerPoolSize:      10, // worker工作池的消息队列个数
+		MaxWorkerTaskLength: 1024, // 每个worker对应的消息队列的任务的数量最大值
 	}
-	//应该尝试从conf/zinx.json加载一些用户自定义的参数
+	// 应该尝试从conf/zinx.json加载一些用户自定义的参数
 
 	nowPath, err := os.Getwd()
 	if err != nil {

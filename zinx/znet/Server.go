@@ -37,6 +37,8 @@ func (s *Server) Start() {
 	logger.Log.Infof("[Zinx] final Config %+v", s)
 	logger.Log.Infof("[Start] Server listener at IP %s ,Port %d, is starting!", s.IP, s.Port)
 	go func() {
+		// 开启消息队列以及woker工作池
+		s.MsgHandler.StartWorkerPool()
 		// 1 获取tcp的address
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {
@@ -75,6 +77,7 @@ func (s *Server) Stop() {
 func (s *Server) AddRouter(msgId uint32, router ziface.IRouter) {
 	err := s.MsgHandler.AddRouter(msgId, router)
 	if err != nil {
+		logger.Log.Errorf("[Add Router Error:err %v]", err)
 		return
 	}
 	logger.Log.Info("Add Router success!")
