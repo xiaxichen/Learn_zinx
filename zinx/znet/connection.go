@@ -2,38 +2,43 @@ package znet
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"learn_zinx/zinx/logger"
 	"learn_zinx/zinx/utils"
 	"learn_zinx/zinx/ziface"
 	"net"
+	"sync"
 )
 
 /*
-链接模块
+连接模块
 */
 
 type Connection struct {
 	// 当前Conn隶属于那个server
 	TcpServer ziface.IServer
 
-	// 当前socket链接 tcp 套接字
+	// 当前socket连接 tcp 套接字
 	Conn *net.TCPConn
 
-	// 链接ID
+	// 连接ID
 	ConnID uint32
 
-	//当前的链接状态
+	// 当前的连接状态
 	isClose bool
 
-	//告知当前链接已经退出停止的 channel
+	// 告知当前连接已经退出停止的 channel
 	ExitChan chan bool
 
-	//该链接处理的方法
+	// 该连接处理的方法
 	MsgHandler ziface.IMsgHandle
 
-	//该链接处理的方法
-	//Router ziface.IRouter
+	// 连接属性
+	property map[string]interface{}
+
+	// 保护连接属性的锁
+	propertyLock sync.RWMutex
 
 	//无缓冲的管道，用于读写goroutine之间的消息通信
 	msgChan chan []byte
@@ -42,12 +47,37 @@ type Connection struct {
 	MaxPackageSize uint32
 }
 
-// 告知当前链接是否关闭
+// 设置连接属性
+func (c *Connection) SetProperty(key string, value interface{}) {
+	c.propertyLock.RLock()
+	defer c.propertyLock.RUnlock()
+	c.property[key] = value
+}
+
+// 获取连接属性
+func (c *Connection) GetProperty(key string) (interface{}, error) {
+	if property, ok := c.property[key]; ok {
+		return property, nil
+	}
+	return nil, errors.New(fmt.Sprintf("property no define key:%s", key))
+}
+
+// 删除链接属性
+func (c *Connection) RemoveProperty(key string) {
+	if _, ok := c.property[key]; ok {
+		delete(c.property, key)
+	} else {
+		logger.Log.Errorf("delete property error no define key:%s", key)
+	}
+
+}
+
+// 告知当前连接是否关闭
 func (c *Connection) IsClose() bool {
 	return c.isClose
 }
 
-// 从链接读取业务方法
+// 从连接读取业务方法
 func (c *Connection) StartReader() {
 	logger.Log.Debugf("Reader Goroutine is running..")
 	defer logger.Log.Debugf("[ConnID = %d Reader is Exit, remote addr is %s]", c.ConnID, c.RemoteAddr().String())
@@ -169,7 +199,7 @@ func (c *Connection) Stop() {
 	c.Conn.Close()
 	// 告知writer 关闭
 	c.ExitChan <- true
-	// 将当前链接从ConnMgr中摘除
+	// 将当前连接从ConnMgr中摘除
 	err := c.TcpServer.GetConnMgr().Remove(c)
 	logger.Log.Errorf("Conn Stop error:%s", err)
 	close(c.ExitChan)
@@ -188,7 +218,7 @@ func (c *Connection) RemoteAddr() net.Addr {
 	return c.Conn.RemoteAddr()
 }
 
-// 初始化链接的方法
+// 初始化连接的方法
 func NewConnection(server ziface.IServer, conn *net.TCPConn, ConnID uint32, MaxPackageSize uint32, handler ziface.IMsgHandle) *Connection {
 	c := &Connection{
 		TcpServer:      server,
@@ -199,6 +229,7 @@ func NewConnection(server ziface.IServer, conn *net.TCPConn, ConnID uint32, MaxP
 		ExitChan:       make(chan bool, 1),
 		msgChan:        make(chan []byte),
 		MaxPackageSize: MaxPackageSize,
+		property:       map[string]interface{}{},
 	}
 	// 将connection 加入到ConnMgr中
 	c.TcpServer.GetConnMgr().Add(c)

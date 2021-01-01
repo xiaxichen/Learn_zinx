@@ -5,7 +5,7 @@ import (
 )
 
 type Requests struct {
-	// 已经和客户端建立好的链接
+	// 已经和客户端建立好的连接
 	conn ziface.IConnection
 	//客户端请求的数据
 	msg ziface.IMessage
