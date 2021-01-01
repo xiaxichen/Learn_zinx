@@ -8,7 +8,7 @@ import (
 )
 
 /*
-链接管理模块
+连接管理模块
 */
 type ConnectionManager struct {
 	connections map[uint32]ziface.IConnection // 管理的连接集合
