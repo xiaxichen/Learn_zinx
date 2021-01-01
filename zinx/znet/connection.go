@@ -229,6 +229,7 @@ func NewConnection(server ziface.IServer, conn *net.TCPConn, ConnID uint32, MaxP
 		ExitChan:       make(chan bool, 1),
 		msgChan:        make(chan []byte),
 		MaxPackageSize: MaxPackageSize,
+		property:       map[string]interface{}{},
 	}
 	// 将connection 加入到ConnMgr中
 	c.TcpServer.GetConnMgr().Add(c)
