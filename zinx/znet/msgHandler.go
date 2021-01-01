@@ -18,6 +18,7 @@ type MsgHandle struct {
 	MaxWorkerTaskLen uint32
 }
 
+// 执行注册的路由
 func (mh *MsgHandle) DoMsgHandler(request ziface.IRequest) {
 	// Requests 中拿到msgID
 	handle, ok := mh.Apis[request.GetId()]
@@ -30,6 +31,7 @@ func (mh *MsgHandle) DoMsgHandler(request ziface.IRequest) {
 	handle.PostHandle(request)
 }
 
+// 根据msgId注册路由
 func (mh *MsgHandle) AddRouter(msgId uint32, router ziface.IRouter) error {
 	// 判断当前id是否被注册了 如果被注册就返回一个异常
 	if _, ok := mh.Apis[msgId]; ok {
@@ -42,6 +44,7 @@ func (mh *MsgHandle) AddRouter(msgId uint32, router ziface.IRouter) error {
 	return nil
 }
 
+// 新建 MsgHandler
 func NewMsgHandle() *MsgHandle {
 	return &MsgHandle{
 		Apis:             make(map[uint32]ziface.IRouter),
@@ -55,7 +58,6 @@ func NewMsgHandle() *MsgHandle {
 func (mh *MsgHandle) StartWorkerPool() {
 	// 根据WorkerPoolSize 分别开启Worker，每个Worker用一个go来承载
 	for i := 0; i < int(mh.WorkerPoolSize); i++ {
-		// 一个worker被启动
 		// 1.当前的 worker对应的channel消息队列 开辟空间 worker id为i
 		mh.TaskQueue[i] = make(chan ziface.IRequest, mh.MaxWorkerTaskLen)
 		// 2.启动当前的worker，阻塞等待消息从channel传递进来
@@ -63,7 +65,7 @@ func (mh *MsgHandle) StartWorkerPool() {
 	}
 }
 
-//启动一个工作流程
+// 启动一个工作流程
 func (mh *MsgHandle) StartWorker(workerId int, taskQueue chan ziface.IRequest) {
 	logger.Log.Debugf("Worker ID=%d is Started!", workerId)
 	// 不断的阻塞等待消息对应的队列消息
@@ -76,7 +78,7 @@ func (mh *MsgHandle) StartWorker(workerId int, taskQueue chan ziface.IRequest) {
 	}
 }
 
-//将消息提交到消息队列，由worker进行处理
+// 将消息提交到消息队列，由worker进行处理
 func (mh *MsgHandle) SendMsgToTaskQueue(request ziface.IRequest) {
 	// 1 消息平均分配个不同的worker（根据客户端建立的ConnId来进行分配）
 	wokerId := request.GetConnection().GetConnID() % mh.WorkerPoolSize
