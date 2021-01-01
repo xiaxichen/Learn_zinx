@@ -11,8 +11,8 @@ import (
 链接管理模块
 */
 type ConnectionManager struct {
-	connections map[uint32]ziface.IConnection //管理的连接集合
-	connLock    sync.RWMutex                  //锁
+	connections map[uint32]ziface.IConnection // 管理的连接集合
+	connLock    sync.RWMutex                  // 锁
 
 }
 
@@ -21,7 +21,7 @@ func (cmr *ConnectionManager) Add(connection ziface.IConnection) {
 	cmr.connLock.Lock()
 	defer cmr.connLock.Unlock()
 
-	//将conn加入到ConnManager
+	// 将conn加入到ConnManager
 	cmr.connections[connection.GetConnID()] = connection
 	logger.Log.Debugf("connection add to connections ConnId=%d", connection.GetConnID())
 }
