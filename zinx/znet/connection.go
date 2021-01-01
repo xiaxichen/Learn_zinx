@@ -103,7 +103,7 @@ func (c *Connection) StartReader() {
 		if err != nil {
 			logger.Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
 			if err.Error() == "EOF" {
-				break
+				return
 			}
 		}
 
@@ -111,7 +111,7 @@ func (c *Connection) StartReader() {
 		msg, err := pack.UnPack(headData)
 		if err != nil {
 			logger.Log.Errorf("UnPack Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
-			break
+			return
 		}
 
 		// 根据data length 再次读取Data， 放在msgData中
