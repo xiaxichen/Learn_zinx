@@ -1,6 +1,7 @@
 package znet
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -28,8 +29,9 @@ type Connection struct {
 	// 当前的连接状态
 	isClose bool
 
-	// 告知当前连接已经退出停止的 channel
-	ExitChan chan bool
+	// 告知当前连接退出的上下文
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// 该连接处理的方法
 	MsgHandler ziface.IMsgHandle
@@ -40,11 +42,13 @@ type Connection struct {
 	// 保护连接属性的锁
 	propertyLock sync.Mutex
 
-	//无缓冲的管道，用于读写goroutine之间的消息通信
+	// 无缓冲的管道，用于读写goroutine之间的消息通信
 	msgChan chan []byte
 
-	//最大处理字节数
+	// 最大处理字节数
 	MaxPackageSize uint32
+	// 链接锁
+	sync.RWMutex
 }
 
 // 设置连接属性
@@ -85,63 +89,59 @@ func (c *Connection) StartReader() {
 	defer logger.Log.Debugf("[ConnID = %d Reader is Exit, remote addr is %s]", c.ConnID, c.RemoteAddr().String())
 	defer c.Stop()
 	for {
-		//读取client Data 到buffer中,最大为配置中的MaxPackageSize
-		//buf := make([]byte, c.MaxPackageSize)
-		//_, err := c.Conn.Read(buf)
-		//if err != nil {
-		//	logger.Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
-		//	if err.Error() == "EOF" {
-		//		break
-		//	}
-		//	continue
-		//}
-		// 创建一个 拆包解包的对象
-		pack := NewDataPack()
-
-		// 读取客户端的msg Head 二进制流 8字节
-		headData := make([]byte, pack.GetHeadLen())
-		//c.GetTCPConnection()
-		_, err := io.ReadFull(c.Conn, headData)
-		if err != nil {
-			logger.Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
-			if err.Error() == "EOF" {
-				return
-			}
-		}
-
-		// 拆包,得到msgID 和 msgDatalen 放到消息中
-		msg, err := pack.UnPack(headData)
-		if err != nil {
-			logger.Log.Errorf("UnPack Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+		select {
+		case <-c.ctx.Done():
 			return
-		}
+		default:
+			// 创建一个 拆包解包的对象
+			pack := NewDataPack()
 
-		// 根据data length 再次读取Data， 放在msgData中
-		if msg.GetMsgLen() > 0 {
-			// 第二次从 conn 读,根据头中的data length 再读取data的内容
-			data := make([]byte, msg.GetMsgLen())
-
-			// 根据data length的长度再次从io流中读取
-			_, err := io.ReadFull(c.Conn, data)
+			// 读取客户端的msg Head 二进制流 8字节
+			headData := make([]byte, pack.GetHeadLen())
+			//c.GetTCPConnection()
+			_, err := io.ReadFull(c.Conn, headData)
 			if err != nil {
-				logger.Log.Errorf("Read Conn data for Msg set Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+				logger.Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+				if err.Error() == "EOF" {
+					return
+				}
+			}
+
+			// 拆包,得到msgID 和 msgDatalen 放到消息中
+			msg, err := pack.UnPack(headData)
+			if err != nil {
+				logger.Log.Errorf("UnPack Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
 				return
 			}
-			msg.SetMsgData(data)
+
+			// 根据data length 再次读取Data， 放在msgData中
+			if msg.GetMsgLen() > 0 {
+				// 第二次从 conn 读,根据头中的data length 再读取data的内容
+				data := make([]byte, msg.GetMsgLen())
+
+				// 根据data length的长度再次从io流中读取
+				_, err := io.ReadFull(c.Conn, data)
+				if err != nil {
+					logger.Log.Errorf("Read Conn data for Msg set Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
+					return
+				}
+				msg.SetMsgData(data)
+			}
+			// 从当前 Conn 得到数据 绑定到 Request 中
+			req := Requests{
+				conn: c,
+				msg:  msg,
+			}
+			if utils.GlobalObject.WorkerPoolSize > 0 {
+				// 已经开启了工作池机制,将消息发送给工作池即可
+				c.MsgHandler.SendMsgToTaskQueue(&req)
+			} else {
+				// 执行注册的路由方法
+				// 根据绑定好的MsgId 找到对应处理的handle
+				go c.MsgHandler.DoMsgHandler(&req)
+			}
 		}
-		// 从当前 Conn 得到数据 绑定到 Request 中
-		req := Requests{
-			conn: c,
-			msg:  msg,
-		}
-		if utils.GlobalObject.WorkerPoolSize > 0 {
-			// 已经开启了工作池机制,将消息发送给工作池即可
-			c.MsgHandler.SendMsgToTaskQueue(&req)
-		} else {
-			// 执行注册的路由方法
-			// 根据绑定好的MsgId 找到对应处理的handle
-			go c.MsgHandler.DoMsgHandler(&req)
-		}
+
 	}
 }
 
@@ -158,7 +158,7 @@ func (c *Connection) StartWriter() {
 				logger.Log.Warnf("Send data error %s", err)
 				return
 			}
-		case <-c.ExitChan:
+		case <-c.ctx.Done():
 			//代表Reader已经退出，此时Writer也要退出
 			return
 		}
@@ -183,6 +183,8 @@ func (c *Connection) Send(msgId uint32, data []byte) error {
 }
 func (c *Connection) Start() {
 	logger.Log.Debugf("Conn Start().. ConnID = %d", c.ConnID)
+	// 启动上下文更加优雅的关闭管道
+	c.ctx, c.cancel = context.WithCancel(context.Background())
 	go c.StartReader()
 	// 启动当前写数据的业务
 	go c.StartWriter()
@@ -192,6 +194,8 @@ func (c *Connection) Start() {
 
 func (c *Connection) Stop() {
 	logger.Log.Infof("Conn Stop().. ConnID = %d", c.ConnID)
+	c.Lock()
+	defer c.Unlock()
 	// 按照开发者传递进来，停止连接前需要调用的处理业务
 	c.TcpServer.CallOnStop(c)
 	if c.IsClose() == true {
@@ -200,11 +204,12 @@ func (c *Connection) Stop() {
 	c.isClose = true
 	c.Conn.Close()
 	// 告知writer 关闭
-	c.ExitChan <- true
+	c.cancel()
 	// 将当前连接从ConnMgr中摘除
 	err := c.TcpServer.GetConnMgr().Remove(c)
-	logger.Log.Errorf("Conn Stop error:%s", err)
-	close(c.ExitChan)
+	if err!=nil{
+		logger.Log.Errorf("Conn Stop error:%s", err)
+	}
 	close(c.msgChan)
 }
 
@@ -228,7 +233,6 @@ func NewConnection(server ziface.IServer, conn *net.TCPConn, ConnID uint32, MaxP
 		ConnID:         ConnID,
 		isClose:        false,
 		MsgHandler:     handler,
-		ExitChan:       make(chan bool, 1),
 		msgChan:        make(chan []byte),
 		MaxPackageSize: MaxPackageSize,
 		property:       map[string]interface{}{},
