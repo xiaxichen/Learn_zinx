@@ -4,8 +4,7 @@
 
 ### 其中部分函数和逻辑有所改动之后会以此框架为基础进行http等协议的封装。 在此再次感谢 刘丹冰Aceld ！ 
 
-## github仓库地址 
-## [Zinx](https://github.com/aceld/zinx)  
+## github仓库地址 [Zinx](https://github.com/aceld/zinx)  
 
 ### demo Server
 ```go
