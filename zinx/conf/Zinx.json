@@ -2,7 +2,7 @@
   "Host": "127.0.0.1",
   "TcpPort": 9000,
   "Name": "ZinxDemo",
-  "Version": "V0.6",
+  "Version": "V0.9",
   "MaxConn": 1000,
   "MaxPackageSize": 2048,
   "WorkerPoolSize": 10,
