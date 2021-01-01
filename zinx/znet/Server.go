@@ -9,20 +9,22 @@ import (
 	"os"
 )
 
-//iServer 的接口实现，定义一个Server的服务器model
+// iServer 的接口实现，定义一个Server的服务器model
 type Server struct {
-	//服务器的名称
+	// 服务器的名称
 	Name string
-	//服务器绑定的ip版本
+	// 服务器绑定的ip版本
 	IPVersion string
-	//服务器监听的ip
+	// 服务器监听的ip
 	IP string
-	//服务器监听的端口
+	// 服务器监听的端口
 	Port int
 	// 路由 当前server的消息管理模块，用来绑定MsgId和对应的处理业务API关系
 	MsgHandler ziface.IMsgHandle
 	// 服务器版本
 	ServerVersion string
+	// 该server的连接器
+	ConnMgr ziface.IConnManager
 }
 
 func (s *Server) Server() {
@@ -60,8 +62,14 @@ func (s *Server) Start() {
 				logger.Log.Errorf("Accept Error %v", err)
 				continue
 			}
+			//设置最大连接数个数的判断如果超出最大连接数量则关闭此新链接
+			if s.ConnMgr.Len() > utils.GlobalObject.MaxConn {
+				//todo:给客户端发送一个超出最大连接的连接包
+				tcpConn.Close()
+				continue
+			}
 			//将处理新链接的业务方法
-			connection := NewConnection(tcpConn, CID, utils.GlobalObject.MaxPackageSize, s.MsgHandler)
+			connection := NewConnection(s,tcpConn, CID, utils.GlobalObject.MaxPackageSize, s.MsgHandler)
 			CID++
 			//启动处理
 			go connection.Start()
@@ -71,16 +79,24 @@ func (s *Server) Start() {
 }
 
 func (s *Server) Stop() {
-
+	// 将一些服务器的资源、状态或者一些已经开辟的的链接信息进行停止或者回收
+	logger.Log.Infof("[Stop] Zinx server name %s", s.Name)
+	s.ConnMgr.Clear()
 }
 
 func (s *Server) AddRouter(msgId uint32, router ziface.IRouter) {
+	// 注册路由
 	err := s.MsgHandler.AddRouter(msgId, router)
 	if err != nil {
-		logger.Log.Errorf("[Add Router Error:err %v]", err)
+		logger.Log.Errorf("[Zinx] Add Router Error:err %v", err)
 		return
 	}
 	logger.Log.Info("Add Router success!")
+}
+
+// 获取连接管理器
+func (s *Server) GetConnMgr() ziface.IConnManager {
+	return s.ConnMgr
 }
 
 /*
@@ -95,6 +111,7 @@ func NewServer(IPVersion string) ziface.IServer {
 		IP:            utils.GlobalObject.Host,
 		Port:          utils.GlobalObject.TcpPort,
 		MsgHandler:    NewMsgHandle(),
+		ConnMgr:       MewConnManager(),
 	}
 	return s
 }
