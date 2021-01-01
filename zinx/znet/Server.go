@@ -63,14 +63,27 @@ func (s *Server) Start() {
 				continue
 			}
 			//设置最大连接数个数的判断如果超出最大连接数量则关闭此新链接
-			if s.ConnMgr.Len() > utils.GlobalObject.MaxConn -1 {
-				//todo:给客户端发送一个超出最大连接的连接包
-				logger.Log.Warnf("[Server] ConnMgr length greater MaxConn length %d ！！！！ New TcpConn well be close!",utils.GlobalObject.MaxConn)
-				tcpConn.Close()
+			if s.ConnMgr.Len() > utils.GlobalObject.MaxConn-1 {
+				//给客户端发送一个超出最大连接的连接包
+				pack := NewDataPack()
+				binaryMsg, err1 := pack.Pack(NewMsgPackage(0,[]byte("The maximum number of connections exceeded!")))
+				if err1 != nil {
+					logger.Log.Errorf("PackError func error! err:%s", err1)
+				}
+				logger.Log.Warnf("[Server] ConnMgr length greater MaxConn length %d ！！！！ New TcpConn well be close!", utils.GlobalObject.MaxConn)
+				_, errWrite := tcpConn.Write(binaryMsg)
+				if errWrite != nil {
+					logger.Log.Errorf("TcpConn Write Error! err:%s", errWrite)
+				}
+
+				errClose := tcpConn.Close()
+				if errClose != nil {
+					logger.Log.Errorf("TcpConn Close Error! err:%s", errClose)
+				}
 				continue
 			}
 			//将处理新链接的业务方法
-			connection := NewConnection(s,tcpConn, CID, utils.GlobalObject.MaxPackageSize, s.MsgHandler)
+			connection := NewConnection(s, tcpConn, CID, utils.GlobalObject.MaxPackageSize, s.MsgHandler)
 			CID++
 			//启动处理
 			go connection.Start()
