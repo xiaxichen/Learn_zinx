@@ -57,14 +57,15 @@ func (s *Server) Start() {
 		// 3 阻塞的等待客户端连接，处理客户端的请求
 
 		for {
-			tcpConn, err := listenIP.AcceptTCP()
-			if err != nil {
+			tcpConn, errTcp := listenIP.AcceptTCP()
+			if errTcp != nil {
 				logger.Log.Errorf("Accept Error %v", err)
 				continue
 			}
 			//设置最大连接数个数的判断如果超出最大连接数量则关闭此新链接
-			if s.ConnMgr.Len() > utils.GlobalObject.MaxConn {
+			if s.ConnMgr.Len() > utils.GlobalObject.MaxConn -1 {
 				//todo:给客户端发送一个超出最大连接的连接包
+				logger.Log.Warnf("[Server] ConnMgr length greater MaxConn length %d ！！！！ New TcpConn well be close!",utils.GlobalObject.MaxConn)
 				tcpConn.Close()
 				continue
 			}
