@@ -207,7 +207,9 @@ func (c *Connection) Stop() {
 	c.cancel()
 	// 将当前连接从ConnMgr中摘除
 	err := c.TcpServer.GetConnMgr().Remove(c)
-	logger.Log.Errorf("Conn Stop error:%s", err)
+	if err!=nil{
+		logger.Log.Errorf("Conn Stop error:%s", err)
+	}
 	close(c.msgChan)
 }
 
