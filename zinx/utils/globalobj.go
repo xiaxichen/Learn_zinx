@@ -67,7 +67,7 @@ func init() {
 		TcpPort:             9000,
 		Name:                "ZinxServerApp",
 		Version:             "V0.4",
-		MaxConn:             2000,
+		MaxConn:             2000, // 实际连接数 从0开始计数 如最大连接为2000 则实际上最大数值为1999
 		MaxPackageSize:      4096,
 		WorkerPoolSize:      10, // worker工作池的消息队列个数
 		MaxWorkerTaskLength: 1024, // 每个worker对应的消息队列的任务的数量最大值
