@@ -25,9 +25,9 @@ type Server struct {
 	ServerVersion string
 	// 该server的连接器
 	ConnMgr ziface.IConnManager
-	// 链接创建前的方法
+	// 连接创建前的方法
 	OnConnStart func(connection ziface.IConnection)
-	// 链接销毁前的方法
+	// 连接销毁前的方法
 	OnConnStop func(connection ziface.IConnection)
 }
 
@@ -66,7 +66,7 @@ func (s *Server) Start() {
 				logger.Log.Errorf("Accept Error %v", err)
 				continue
 			}
-			//设置最大连接数个数的判断如果超出最大连接数量则关闭此新链接
+			// 设置最大连接数个数的判断如果超出最大连接数量则关闭此新连接
 			if s.ConnMgr.Len() > utils.GlobalObject.MaxConn-1 {
 				//给客户端发送一个超出最大连接的连接包
 				pack := NewDataPack()
@@ -86,10 +86,10 @@ func (s *Server) Start() {
 				}
 				continue
 			}
-			//将处理新链接的业务方法
+			// 将处理新连接的业务方法
 			connection := NewConnection(s, tcpConn, CID, utils.GlobalObject.MaxPackageSize, s.MsgHandler)
 			CID++
-			//启动处理
+			// 启动处理
 			go connection.Start()
 		}
 
@@ -97,7 +97,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) Stop() {
-	// 将一些服务器的资源、状态或者一些已经开辟的的链接信息进行停止或者回收
+	// 将一些服务器的资源、状态或者一些已经开辟的的连接信息进行停止或者回收
 	logger.Log.Infof("[Stop] Zinx server name %s", s.Name)
 	s.ConnMgr.Clear()
 }
