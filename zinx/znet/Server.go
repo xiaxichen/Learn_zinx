@@ -25,6 +25,10 @@ type Server struct {
 	ServerVersion string
 	// 该server的连接器
 	ConnMgr ziface.IConnManager
+	// 链接创建前的方法
+	OnConnStart func(connection ziface.IConnection)
+	// 链接销毁前的方法
+	OnConnStop func(connection ziface.IConnection)
 }
 
 func (s *Server) Server() {
@@ -66,7 +70,7 @@ func (s *Server) Start() {
 			if s.ConnMgr.Len() > utils.GlobalObject.MaxConn-1 {
 				//给客户端发送一个超出最大连接的连接包
 				pack := NewDataPack()
-				binaryMsg, err1 := pack.Pack(NewMsgPackage(0,[]byte("The maximum number of connections exceeded!")))
+				binaryMsg, err1 := pack.Pack(NewMsgPackage(0, []byte("The maximum number of connections exceeded!")))
 				if err1 != nil {
 					logger.Log.Errorf("PackError func error! err:%s", err1)
 				}
@@ -111,6 +115,33 @@ func (s *Server) AddRouter(msgId uint32, router ziface.IRouter) {
 // 获取连接管理器
 func (s *Server) GetConnMgr() ziface.IConnManager {
 	return s.ConnMgr
+}
+
+// 注册OnConnStart方法
+
+func (s *Server) SetOnStart(f func(connection ziface.IConnection)) {
+	s.OnConnStart = f
+}
+
+// 调用OnConnStart方法
+func (s *Server) CallOnStart(connection ziface.IConnection) {
+	if s.OnConnStart != nil {
+		logger.Log.Debugf("-->Call OnConnStart")
+		s.OnConnStart(connection)
+	}
+}
+
+// 注册OnConnStop方法
+func (s *Server) SetOnStop(f func(connection ziface.IConnection)) {
+	s.OnConnStop = f
+}
+
+// 调用OnConnStop方法
+func (s *Server) CallOnStop(connection ziface.IConnection) {
+	if s.OnConnStop != nil {
+		logger.Log.Debugf("-->Call OnConnStop")
+		s.OnConnStop(connection)
+	}
 }
 
 /*

@@ -152,12 +152,16 @@ func (c *Connection) Send(msgId uint32, data []byte) error {
 func (c *Connection) Start() {
 	logger.Log.Debugf("Conn Start().. ConnID = %d", c.ConnID)
 	go c.StartReader()
-	//启动当前写数据的业务
+	// 启动当前写数据的业务
 	go c.StartWriter()
+	// 按照开发者传递进来，创建连接后需要调用的处理业务
+	c.TcpServer.CallOnStart(c)
 }
 
 func (c *Connection) Stop() {
 	logger.Log.Infof("Conn Stop().. ConnID = %d", c.ConnID)
+	// 按照开发者传递进来，停止连接前需要调用的处理业务
+	c.TcpServer.CallOnStop(c)
 	if c.isClose == true {
 		return
 	}
