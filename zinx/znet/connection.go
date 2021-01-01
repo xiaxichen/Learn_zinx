@@ -167,7 +167,7 @@ func (c *Connection) StartWriter() {
 
 // 提供一个send Msg的方法
 func (c *Connection) Send(msgId uint32, data []byte) error {
-	if c.isClose == true {
+	if c.IsClose() == true {
 		return errors.New("Connection is Closed! for send !")
 	}
 	// 将data进行封包 msgDataLen|MsgId|Data
@@ -194,7 +194,7 @@ func (c *Connection) Stop() {
 	logger.Log.Infof("Conn Stop().. ConnID = %d", c.ConnID)
 	// 按照开发者传递进来，停止连接前需要调用的处理业务
 	c.TcpServer.CallOnStop(c)
-	if c.isClose == true {
+	if c.IsClose() == true {
 		return
 	}
 	c.isClose = true
