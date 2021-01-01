@@ -38,7 +38,7 @@ type Connection struct {
 	property map[string]interface{}
 
 	// 保护连接属性的锁
-	propertyLock sync.RWMutex
+	propertyLock sync.Mutex
 
 	//无缓冲的管道，用于读写goroutine之间的消息通信
 	msgChan chan []byte
@@ -49,8 +49,8 @@ type Connection struct {
 
 // 设置连接属性
 func (c *Connection) SetProperty(key string, value interface{}) {
-	c.propertyLock.RLock()
-	defer c.propertyLock.RUnlock()
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
 	c.property[key] = value
 }
 
@@ -64,6 +64,8 @@ func (c *Connection) GetProperty(key string) (interface{}, error) {
 
 // 删除链接属性
 func (c *Connection) RemoveProperty(key string) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
 	if _, ok := c.property[key]; ok {
 		delete(c.property, key)
 	} else {
