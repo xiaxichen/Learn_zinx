@@ -38,7 +38,7 @@ type Connection struct {
 	property map[string]interface{}
 
 	// 保护连接属性的锁
-	propertyLock sync.RWMutex
+	propertyLock sync.Mutex
 
 	//无缓冲的管道，用于读写goroutine之间的消息通信
 	msgChan chan []byte
@@ -49,8 +49,8 @@ type Connection struct {
 
 // 设置连接属性
 func (c *Connection) SetProperty(key string, value interface{}) {
-	c.propertyLock.RLock()
-	defer c.propertyLock.RUnlock()
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
 	c.property[key] = value
 }
 
@@ -64,6 +64,8 @@ func (c *Connection) GetProperty(key string) (interface{}, error) {
 
 // 删除链接属性
 func (c *Connection) RemoveProperty(key string) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
 	if _, ok := c.property[key]; ok {
 		delete(c.property, key)
 	} else {
@@ -103,7 +105,7 @@ func (c *Connection) StartReader() {
 		if err != nil {
 			logger.Log.Errorf("Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
 			if err.Error() == "EOF" {
-				break
+				return
 			}
 		}
 
@@ -111,7 +113,7 @@ func (c *Connection) StartReader() {
 		msg, err := pack.UnPack(headData)
 		if err != nil {
 			logger.Log.Errorf("UnPack Error ConnID = %d remote addr is %s ,%v", c.ConnID, c.RemoteAddr().String(), err)
-			break
+			return
 		}
 
 		// 根据data length 再次读取Data， 放在msgData中
@@ -165,7 +167,7 @@ func (c *Connection) StartWriter() {
 
 // 提供一个send Msg的方法
 func (c *Connection) Send(msgId uint32, data []byte) error {
-	if c.isClose == true {
+	if c.IsClose() == true {
 		return errors.New("Connection is Closed! for send !")
 	}
 	// 将data进行封包 msgDataLen|MsgId|Data
@@ -192,7 +194,7 @@ func (c *Connection) Stop() {
 	logger.Log.Infof("Conn Stop().. ConnID = %d", c.ConnID)
 	// 按照开发者传递进来，停止连接前需要调用的处理业务
 	c.TcpServer.CallOnStop(c)
-	if c.isClose == true {
+	if c.IsClose() == true {
 		return
 	}
 	c.isClose = true
