@@ -14,7 +14,10 @@ import (
 */
 
 type Connection struct {
-	//当前socket链接 tcp 套接字
+	// 当前Conn隶属于那个server
+	TcpServer ziface.IServer
+
+	// 当前socket链接 tcp 套接字
 	Conn *net.TCPConn
 
 	// 链接ID
@@ -46,8 +49,8 @@ func (c *Connection) IsClose() bool {
 
 // 从链接读取业务方法
 func (c *Connection) StartReader() {
-	logger.Log.Info("Reader Goroutine is running..")
-	defer logger.Log.Infof("[ConnID = %d Reader is Exit, remote addr is %s]", c.ConnID, c.RemoteAddr().String())
+	logger.Log.Debugf("Reader Goroutine is running..")
+	defer logger.Log.Debugf("[ConnID = %d Reader is Exit, remote addr is %s]", c.ConnID, c.RemoteAddr().String())
 	defer c.Stop()
 	for {
 		//读取client Data 到buffer中,最大为配置中的MaxPackageSize
@@ -81,7 +84,7 @@ func (c *Connection) StartReader() {
 			break
 		}
 
-		// 根据datalen 再次读取Data， 放在msgData中
+		// 根据data length 再次读取Data， 放在msgData中
 		if msg.GetMsgLen() > 0 {
 			// 第二次从 conn 读,根据头中的data length 再读取data的内容
 			data := make([]byte, msg.GetMsgLen())
@@ -100,11 +103,11 @@ func (c *Connection) StartReader() {
 			msg:  msg,
 		}
 		if utils.GlobalObject.WorkerPoolSize > 0 {
-			//已经开启了工作池机制,将消息发送给工作池即可
+			// 已经开启了工作池机制,将消息发送给工作池即可
 			c.MsgHandler.SendMsgToTaskQueue(&req)
 		} else {
-			//执行注册的路由方法
-			//根据绑定好的MsgId 找到对应处理的handle
+			// 执行注册的路由方法
+			// 根据绑定好的MsgId 找到对应处理的handle
 			go c.MsgHandler.DoMsgHandler(&req)
 		}
 	}
@@ -112,8 +115,8 @@ func (c *Connection) StartReader() {
 
 // 开始写入
 func (c *Connection) StartWriter() {
-	logger.Log.Info("[Write Goroutine is running!]")
-	defer logger.Log.Infof("%s [conn Write is Close!]", c.RemoteAddr().String())
+	logger.Log.Debug("[Zinx] Write Goroutine is running!")
+	defer logger.Log.Infof("[Zinx] %s conn Write is Close!", c.RemoteAddr().String())
 	for {
 
 		select {
@@ -162,6 +165,9 @@ func (c *Connection) Stop() {
 	c.Conn.Close()
 	// 告知writer 关闭
 	c.ExitChan <- true
+	// 将当前链接从ConnMgr中摘除
+	err := c.TcpServer.GetConnMgr().Remove(c)
+	logger.Log.Errorf("Conn Stop error:%s", err)
 	close(c.ExitChan)
 	close(c.msgChan)
 }
@@ -179,8 +185,9 @@ func (c *Connection) RemoteAddr() net.Addr {
 }
 
 // 初始化链接的方法
-func NewConnection(conn *net.TCPConn, ConnID uint32, MaxPackageSize uint32, handler ziface.IMsgHandle) *Connection {
+func NewConnection(server ziface.IServer, conn *net.TCPConn, ConnID uint32, MaxPackageSize uint32, handler ziface.IMsgHandle) *Connection {
 	c := &Connection{
+		TcpServer:      server,
 		Conn:           conn,
 		ConnID:         ConnID,
 		isClose:        false,
@@ -189,5 +196,7 @@ func NewConnection(conn *net.TCPConn, ConnID uint32, MaxPackageSize uint32, hand
 		msgChan:        make(chan []byte),
 		MaxPackageSize: MaxPackageSize,
 	}
+	// 将connection 加入到ConnMgr中
+	c.TcpServer.GetConnMgr().Add(c)
 	return c
 }
