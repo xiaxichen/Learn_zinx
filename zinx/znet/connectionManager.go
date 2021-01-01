@@ -12,7 +12,7 @@ import (
 */
 type ConnectionManager struct {
 	connections map[uint32]ziface.IConnection // 管理的连接集合
-	connLock    sync.RWMutex                  // 锁
+	connLock    sync.RWMutex                  // 读写锁
 
 }
 
@@ -76,6 +76,6 @@ func (cmr *ConnectionManager) Clear() {
 func MewConnManager() *ConnectionManager {
 	return &ConnectionManager{
 		connections: make(map[uint32]ziface.IConnection),
-		connLock:    nil,
+		connLock:    sync.RWMutex{},
 	}
 }
